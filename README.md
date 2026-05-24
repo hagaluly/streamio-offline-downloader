@@ -4,6 +4,8 @@ A self-contained [Stremio](https://www.stremio.com/) addon that **fully download
 
 It has **zero external dependencies** and runs on the Node runtime that already ships with Stremio (`stremio-runtime.exe`), so there is nothing to `npm install`.
 
+> **This is a self-hosted addon — you run it on your own machine.** There is no shared server to install from. You clone this repo, start the addon, and install it in Stremio from your own local URL (`http://127.0.0.1:11473/manifest.json`). It works only on the computer where it's running, because it drives *that* machine's Stremio torrent engine and saves files to *that* machine's disk. See [Setup](#setup) below.
+
 > **Platform:** Windows. The launcher scripts, folder picker, and disk-space checks use Windows-specific tooling (PowerShell, `DriveInfo`, VBScript). The core `addon.js` is portable Node, but paths and helpers assume a Windows Stremio install.
 
 **Maintainer:** Hagay Bar · <hagay_bar@outlook.com> · [LinkedIn](https://www.linkedin.com/in/hagay-bar-3741ba6b/)

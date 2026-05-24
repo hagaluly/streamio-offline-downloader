@@ -424,7 +424,7 @@ const MANIFEST = {
   version: '1.0.0',
   name: 'Offline Downloader',
   description: 'Download movies & episodes to disk for buffer-free offline playback (all audio/subtitle tracks). Manage downloads, progress, and storage at http://127.0.0.1:' + ADDON_PORT,
-  logo: 'https://icongr.am/material/download.svg?color=6c5ce7',
+  logo: 'https://gitlab.com/hagay_bar/streamio-offline-downloader/-/raw/main/docs/logo.svg',
   resources: ['catalog', 'meta', 'stream', 'subtitles'],
   types: ['movie', 'series'],
   idPrefixes: ['tt', 'offline'],
