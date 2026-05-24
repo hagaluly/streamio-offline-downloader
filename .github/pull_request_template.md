@@ -1,4 +1,4 @@
-## What does this MR do?
+## What does this PR do?
 
 <!-- Briefly describe the change and why it's needed. -->
 
@@ -25,4 +25,4 @@
 
 <!-- e.g. Closes #1 -->
 
-/cc @hagay_bar
+/cc @hagaluly

@@ -1,25 +1,25 @@
 # Contributing
 
-Thanks for your interest in improving the Stremio Offline Downloader. This project uses a **Merge Request (MR) review process** — the `main` branch is protected and changes are reviewed before they land.
+Thanks for your interest in improving the Stremio Offline Downloader. This project uses a **Pull Request (PR) review process** — the `main` branch is protected and changes are reviewed before they land.
 
 ## Branch protection
 
 - `main` is protected. The general public **cannot push** to it.
-- Direct pushes are limited to project **Maintainers**; everyone else contributes via a fork and an MR.
+- Direct pushes are limited to **Maintainers**; everyone else contributes via a fork and a PR.
 - Force-pushes to `main` are disabled.
-- MRs require **all discussions to be resolved** before they can be merged.
+- PRs require **all review conversations to be resolved** before they can be merged.
 
 ## How to contribute (external contributors)
 
-1. **Fork** the project on GitLab.
+1. **Fork** the project on GitHub.
 2. Create a feature branch from `main`:
    ```bash
    git checkout -b my-change
    ```
-3. Make your change. Keep it focused — one logical change per MR.
+3. Make your change. Keep it focused — one logical change per PR.
 4. Test it against a running Stremio instance (the streaming server on port `11470` must be reachable). Confirm the addon starts and the dashboard loads at `http://127.0.0.1:11473/`.
-5. Push your branch and **open a Merge Request** targeting `main`.
-6. Fill in the MR template, then address review feedback. Resolve all discussion threads.
+5. Push your branch and **open a Pull Request** targeting `main`.
+6. Fill in the PR template, then address review feedback. Resolve all review conversations.
 7. A maintainer merges once the review is complete.
 
 ## Guidelines
