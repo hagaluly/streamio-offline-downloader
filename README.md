@@ -1,93 +1,132 @@
-# streamio-offline-downloader
+# Stremio Offline Downloader
 
+A self-contained [Stremio](https://www.stremio.com/) addon that **fully downloads movies and TV episodes to disk** for buffer-free, fully offline playback — keeping every audio and subtitle track. It also ships a web dashboard for browsing titles, picking sources, watching download progress, and managing storage.
 
+It has **zero external dependencies** and runs on the Node runtime that already ships with Stremio (`stremio-runtime.exe`), so there is nothing to `npm install`.
 
-## Getting started
+> **Platform:** Windows. The launcher scripts, folder picker, and disk-space checks use Windows-specific tooling (PowerShell, `DriveInfo`, VBScript). The core `addon.js` is portable Node, but paths and helpers assume a Windows Stremio install.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+---
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## How it works
 
-## Add your files
+Stremio bundles a local streaming/torrent server on `127.0.0.1:11470`. This addon **drives that existing engine** rather than running its own:
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+1. For a given title, it queries [Torrentio](https://torrentio.strem.fun) for torrent sources (sorted best-quality-first, then by seeders).
+2. It asks Stremio's engine to create the torrent, then pulls the chosen video file (plus any sidecar subtitle files) over HTTP to a local folder.
+3. Once on disk, the file is served back to Stremio over the LAN IP with full HTTP range support — so playback is instant, never buffers, and includes all tracks.
+4. A "Save offline + play" stream lets you **start watching immediately while the file saves in the background**.
+
+The addon never spawns its own copy of Stremio's `server.js` — doing so would race with Stremio's own server and can crash it. It only checks that port `11470` is reachable.
+
+### Components
+
+| File | Role |
+|------|------|
+| `addon.js` | The whole addon: HTTP server, Stremio addon protocol, torrent/download manager, file serving, and the dashboard API. Listens on port **11473**. |
+| `dashboard.html` | The web UI (search, sources, downloads, storage). Inlined and served at `/`. |
+| `Start-Offline-Addon.bat` | Manual launcher — starts the addon on Stremio's runtime and opens the dashboard. |
+| `watch-addon.ps1` | Watchdog that ties the addon's lifecycle to Stremio: starts `addon.js` when port 11470 comes up, stops it when Stremio exits. |
+| `run-watcher-hidden.vbs` | Launches the watcher with no console window (used by a login scheduled task). |
+| `pickfolder.ps1` | Shows the native Windows "Browse for Folder" dialog for choosing the downloads directory. |
+
+---
+
+## Requirements
+
+- **Stremio desktop app** installed (provides `stremio-runtime.exe` and the streaming server on port 11470). The Stremio app must be running for downloads to work.
+- **Windows 10/11.**
+- *(Optional)* **VLC** — used as the external player for the dashboard's ▶ Play button if found at the default install path; otherwise the system default player is used.
+
+---
+
+## Setup
+
+### 1. Configure paths
+
+The scripts contain hard-coded paths that you must point at your own machine. Update these to match your install:
+
+- In `Start-Offline-Addon.bat`, `watch-addon.ps1`, and `run-watcher-hidden.vbs`:
+  - `stremio-runtime.exe` location (default: `C:\Users\<you>\AppData\Local\Programs\Stremio\stremio-runtime.exe`)
+  - the addon directory path
+- These can also be overridden at runtime via environment variables (see [Configuration](#configuration)).
+
+### 2. Run the addon
+
+Double-click **`Start-Offline-Addon.bat`**. It will:
+- start `addon.js` on Stremio's bundled runtime, and
+- open the dashboard at <http://127.0.0.1:11473/>.
+
+Keep that window open while you use offline downloads.
+
+### 3. Install the addon in Stremio
+
+In Stremio, add the addon by URL:
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/hagay_bar/streamio-offline-downloader.git
-git branch -M main
-git push -uf origin main
+http://127.0.0.1:11473/manifest.json
 ```
 
-## Integrate with your tools
+or click the install link the launcher prints:
 
-* [Set up project integrations](https://gitlab.com/hagay_bar/streamio-offline-downloader/-/settings/integrations)
+```
+stremio://127.0.0.1:11473/manifest.json
+```
 
-## Collaborate with your team
+You'll now see an **"Offline Downloader"** entry under streams (to save + play) and an **"Offline Downloads"** catalog (your downloaded library).
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### 4. (Optional) Auto-start with Stremio
 
-## Test and Deploy
+To have the addon start and stop automatically alongside Stremio:
 
-Use the built-in continuous integration in GitLab.
+1. Point the paths in `watch-addon.ps1` and `run-watcher-hidden.vbs` at your addon directory.
+2. Register a **Task Scheduler** task that runs `run-watcher-hidden.vbs` at login. The watcher polls port 11470 every 5 seconds and manages the addon process for you (with a 2-poll grace period before shutdown).
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+---
 
-***
+## Using it
 
-# Editing this README
+### From Stremio
+- Open any movie or episode. Under streams you'll see **"Offline Downloader → Save offline + play"** options. Selecting one starts the download **and** begins playback immediately.
+- Completed items appear as an **"Offline"** play option (instant, buffer-free) and in the **"Offline Downloads"** catalog.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### From the dashboard (<http://127.0.0.1:11473/>)
+- **Search** movies or series by title (powered by Cinemeta), or browse Popular / New.
+- **Pick a source** per title/episode and start a download.
+- **Track progress** — live percentage, speed, and size for active downloads.
+- **Play** completed files in VLC / your default player, copy a Stremio play link, **retry** failed downloads, or **delete** them (removes the file and sidecar subtitles).
+- **Manage storage** — see free/total disk space and space used by your downloads, and **change the downloads folder** (existing downloads are moved to the new location).
+- **Add manually** — paste a magnet link or infohash to queue a download directly.
 
-## Suggestions for a good README
+---
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## Configuration
 
-## Name
-Choose a self-explaining name for your project.
+`addon.js` reads these environment variables (all optional):
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OFFLINE_PORT` | `11473` | Port the addon/dashboard listens on. |
+| `OFFLINE_DIR` | `<home>\Downloads\Stremio` | Downloads directory. Overrides the folder saved in `data/downloads.json`. |
+| `OFFLINE_STREAM_HOST` | auto-detected LAN IP | Host advertised in play/stream URLs (Stremio may ignore `127.0.0.1` streams). |
+| `OFFLINE_TORRENTIO` | `https://torrentio.strem.fun` | Torrentio base URL for source lookups. |
+| `OFFLINE_PLAYER` | VLC if installed | Path to the external player for the dashboard Play button. |
+| `STREMIO_DIR` | `...\Programs\Stremio` | Stremio install directory. |
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### Runtime data
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+The addon writes runtime state under `data/` (created automatically):
+- `downloads.json` — the download database and saved settings (downloads folder).
+- `*.log` / `*.err` / `*.pid` — process logs and bookkeeping.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+These, along with the `downloads/` output folder and local tooling, are excluded from git via `.gitignore`.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+---
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+## Notes & limitations
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- **Stremio must be running** — the addon depends on Stremio's streaming server (port 11470). If it isn't reachable, downloads fail with a clear message.
+- For **movies**, TV-episode files that Torrentio sometimes mixes in from multi-title packs are filtered out automatically.
+- Downloads **resume on startup** if they were interrupted while in progress.
+- A **3% disk headroom** check runs before each download; it won't block if disk space can't be read.
+- This tool only orchestrates Stremio's own torrent engine and public addons. You are responsible for ensuring your use complies with the law in your jurisdiction.

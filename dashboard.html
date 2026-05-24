@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline Downloads — Stremio</title>
+<style>
+  :root { --bg:#0f0b1a; --card:#1b1530; --card2:#241b40; --accent:#7c5cff; --accent2:#a29bfe; --ok:#2ecc71; --warn:#f39c12; --err:#e74c3c; --txt:#ece9f5; --muted:#9b93b8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:linear-gradient(160deg,#0f0b1a,#160f29); color:var(--txt); font-family:'Segoe UI',system-ui,Arial,sans-serif; }
+  header { padding:18px 28px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #2a2145; position:sticky; top:0; background:rgba(15,11,26,.93); backdrop-filter:blur(6px); z-index:5; }
+  header h1 { font-size:19px; margin:0; font-weight:600; }
+  header .logo { width:32px; height:32px; background:var(--accent); border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .wrap { max-width:100%; margin:0 auto; padding:22px 28px 70px; }
+  .card { background:var(--card); border:1px solid #2a2145; border-radius:14px; padding:16px 20px; margin-bottom:20px; }
+  h2 { margin:0 0 12px; font-size:13px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.6px; }
+  input, button, select { font-size:14px; }
+  input, select { padding:10px 12px; border-radius:8px; border:1px solid #34294f; background:#120d22; color:var(--txt); }
+  input { width:100%; }
+  button { cursor:pointer; border:none; border-radius:8px; padding:9px 15px; font-weight:600; color:#fff; background:var(--accent); }
+  button:hover { background:var(--accent2); }
+  button.sm { padding:6px 12px; font-size:13px; }
+  button.danger { background:transparent; border:1px solid var(--err); color:var(--err); }
+  button.danger:hover { background:var(--err); color:#fff; }
+  button.ghost { background:transparent; border:1px solid #3a2f5e; color:var(--muted); }
+  button.ok { background:var(--ok); }
+  .row { display:flex; gap:10px; align-items:center; }
+  .seg { display:inline-flex; border:1px solid #34294f; border-radius:8px; overflow:hidden; }
+  .seg button { background:transparent; color:var(--muted); border-radius:0; padding:8px 16px; white-space:nowrap; }
+  .seg button.active { background:var(--accent); color:#fff; }
+  .bar { height:18px; border-radius:9px; background:#120d22; overflow:hidden; display:flex; }
+  .bar .seg-app { background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .bar .seg-other { background:#3a2f5e; }
+  .legend { display:flex; gap:18px; margin-top:11px; font-size:12.5px; color:var(--muted); flex-wrap:wrap; }
+  .legend b { color:var(--txt); }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:middle; }
+  .results { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:12px; margin-top:14px; }
+  .res { cursor:pointer; border:1px solid transparent; border-radius:10px; padding:6px; transition:.15s; }
+  .res:hover { border-color:var(--accent); background:#221a3c; }
+  .res img { width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:8px; background:#241b40; }
+  .res .t { font-size:12px; margin-top:6px; line-height:1.25; max-height:32px; overflow:hidden; }
+  .res .y { font-size:11px; color:var(--muted); }
+  .sources { margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+  .src { display:flex; gap:12px; align-items:center; background:#16112a; border:1px solid #2a2145; border-radius:9px; padding:10px 12px; }
+  .src .st { flex:1; min-width:0; font-size:13px; line-height:1.3; max-height:36px; overflow:hidden; }
+  .list { display:flex; flex-direction:column; gap:13px; }
+  .item { background:var(--card); border:1px solid #2a2145; border-radius:14px; padding:14px 16px; display:flex; gap:14px; align-items:center; }
+  .item.focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(124,92,255,.25); }
+  .item img { width:50px; height:74px; object-fit:cover; border-radius:8px; background:#241b40; flex:none; }
+  .item .info { flex:1; min-width:0; }
+  .item .title { font-weight:600; font-size:15px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item .sub { font-size:12px; color:var(--muted); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pbar { height:8px; border-radius:5px; background:#120d22; overflow:hidden; }
+  .pbar > div { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .5s; }
+  .pbar.done > div { background:var(--ok); }
+  .pbar.err > div { background:var(--err); }
+  .meta { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:6px; }
+  .actions { display:flex; flex-direction:column; gap:8px; flex:none; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; }
+  .badge.completed { background:rgba(46,204,113,.15); color:var(--ok); }
+  .badge.downloading { background:rgba(124,92,255,.18); color:var(--accent2); }
+  .badge.error { background:rgba(231,76,60,.15); color:var(--err); }
+  .badge.queued { background:rgba(243,156,18,.15); color:var(--warn); }
+  .empty { text-align:center; color:var(--muted); padding:20px 0; }
+  a { color:var(--accent2); }
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--card2); border:1px solid var(--accent); padding:12px 20px; border-radius:10px; opacity:0; transition:opacity .3s; pointer-events:none; max-width:80vw; text-align:center; z-index:20; }
+  .toast.show { opacity:1; }
+  .hint { font-size:12px; color:var(--muted); }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:30; }
+  .modal.show { display:flex; }
+  .modal .box { background:var(--card); border:1px solid var(--accent); border-radius:14px; padding:22px; max-width:560px; width:90%; }
+  .modal code { display:block; background:#120d22; padding:10px; border-radius:8px; margin:10px 0; word-break:break-all; font-size:12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⬇</div>
+  <h1>Offline Downloads</h1>
+  <div style="flex:1"></div>
+  <button class="ghost" onclick="refresh()">↻ Refresh</button>
+</header>
+<div class="wrap">
+
+  <div class="card">
+    <h2>Storage</h2>
+    <div class="bar"><div class="seg-app" id="segApp"></div><div class="seg-other" id="segOther"></div></div>
+    <div class="legend">
+      <span><span class="dot" style="background:linear-gradient(90deg,#7c5cff,#a29bfe)"></span>Stremio downloads: <b id="sUsedApp">–</b></span>
+      <span><span class="dot" style="background:#3a2f5e"></span>Disk usage: <b id="sUsedOther">–</b></span>
+      <span><span class="dot" style="background:#120d22;border:1px solid #34294f"></span>Free: <b id="sFree">–</b></span>
+      <span>Total: <b id="sTotal">–</b></span>
+      <span style="margin-left:auto;color:#6f6790;display:flex;align-items:center;gap:8px"><span id="sDir"></span><button class="ghost sm" onclick="changeDir()">Change…</button></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="align-items:center;gap:12px">
+      <h2 style="margin:0">Find &amp; download</h2>
+      <span style="color:var(--muted);font-weight:700">|</span>
+      <button onclick="document.getElementById('downloads').scrollIntoView({behavior:'smooth'})" style="background:transparent;border:none;padding:0;color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;cursor:pointer">DOWNLOADS</button>
+    </div>
+    <div class="row" style="margin-bottom:10px;margin-top:14px">
+      <div class="seg" style="flex:1;min-width:200px">
+        <button id="tMovie" class="active" onclick="setType('movie')" style="flex:1">Movie</button>
+        <button id="tSeries" onclick="setType('series')" style="flex:1">Series</button>
+      </div>
+      <input id="q" style="flex:3" placeholder="Search title (e.g. The Matrix)" onkeydown="if(event.key==='Enter')doSearch()">
+      <select id="findSort" onchange="onSortChange()" style="flex:1;min-width:150px">
+        <option value="popular">Popular</option>
+        <option value="new">Newest releases</option>
+      </select>
+      <select id="genre" onchange="doSearch()" style="flex:1;min-width:120px"><option value="">All genres</option></select>
+      <button onclick="doSearch()" style="flex:1">Search</button>
+    </div>
+    <div id="resultsLabel" class="hint" style="margin-top:12px"></div>
+    <div class="results" id="results"></div>
+    <div id="picked" style="display:none;margin-top:14px">
+      <div class="row"><b id="pickedName"></b><button class="ghost sm" onclick="closeSources()">✕ close</button></div>
+      <div id="seasonBar" class="row" style="margin-top:10px;flex-wrap:wrap"></div>
+      <div id="episodes" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;max-height:280px;overflow:auto"></div>
+      <div class="sources" id="sources"></div>
+    </div>
+  </div>
+
+  <div class="card" id="downloads">
+    <div class="row" style="justify-content:space-between">
+      <div class="row" style="align-items:center;gap:12px">
+        <button onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top" style="background:transparent;border:none;padding:0;color:var(--muted);cursor:pointer;display:flex;align-items:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/><path d="M9.5 20v-5h5v5"/></svg></button>
+        <span style="color:var(--muted);font-weight:700">|</span>
+        <h2 style="margin:0">Your downloads</h2>
+      </div>
+      <div class="row"><span class="hint">Sort:</span>
+        <select id="sortSel" onchange="refresh()">
+          <option value="new">Recently added</option>
+          <option value="az">A–Z</option>
+          <option value="za">Z–A</option>
+          <option value="big">Largest</option>
+          <option value="small">Smallest</option>
+        </select>
+      </div>
+    </div>
+    <div class="list" id="list" style="margin-top:12px"></div>
+    <div class="empty" id="empty" style="display:none">Nothing yet. Search above and download a movie or episode.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal" id="playModal"><div class="box">
+  <h2 style="color:var(--txt);font-size:16px">▶ Play in Stremio</h2>
+  <p class="hint">The link is copied to your clipboard. In Stremio, paste it into the <b>“Search or paste link”</b> box at the top and press Enter — it plays from your disk, buffer-free.</p>
+  <code id="playUrl"></code>
+  <div class="row" style="justify-content:flex-end">
+    <button class="ghost" onclick="closePlay()">Close</button>
+    <button onclick="copyPlay()">Copy link again</button>
+  </div>
+</div></div>
+
+<script>
+const PORT = location.port || '11473';
+let TYPE = 'movie';
+function fmt(b){b=Number(b)||0;const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<u.length-1){b/=1024;i++;}return b.toFixed(i?1:0)+' '+u[i];}
+function pct(r){return r.sizeBytes?Math.min(100,Math.floor((r.bytesDownloaded||0)/r.sizeBytes*100)):0;}
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+let tT; function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('show'),2600);}
+
+function setType(t){TYPE=t;document.getElementById('tMovie').classList.toggle('active',t==='movie');document.getElementById('tSeries').classList.toggle('active',t==='series');doSearch();}
+let lastPick=null, seriesVideos=[], seriesId='', seriesPoster='', seriesName='';
+const GENRES=['Action','Adventure','Animation','Comedy','Crime','Documentary','Drama','Family','Fantasy','History','Horror','Music','Mystery','Reality-TV','Romance','Sci-Fi','Sport','Thriller','War','Western'];
+function fillGenres(){const sel=document.getElementById('genre');sel.innerHTML='<option value="">All genres</option>'+GENRES.map(g=>`<option value="${g}">${g}</option>`).join('');}
+let SS={type:'movie',q:'',genre:'',sort:'popular',newMode:false,year:0,skip:0,loading:false,done:false,fit:false};
+function resCard(m){return `<div class="res" onclick='pick(${JSON.stringify(m).replace(/'/g,"&#39;")})'><img src="${m.poster||''}" onerror="this.style.visibility='hidden'"><div class="t">${esc(m.name)}</div><div class="y">${esc(m.year)}</div></div>`;}
+// In "Newest releases" mode the year is the catalog filter, so a content genre can't combine with it.
+function onSortChange(){
+  const isNew=document.getElementById('findSort').value==='new';
+  const g=document.getElementById('genre');
+  g.disabled=isNew && !document.getElementById('q').value.trim();
+  g.style.opacity=g.disabled?0.5:1;
+  doSearch();
+}
+async function doSearch(){
+  closeSources();
+  const sort=(document.getElementById('findSort')||{}).value||'popular';
+  const q=document.getElementById('q').value.trim();
+  SS={type:TYPE,q,genre:document.getElementById('genre').value,sort,newMode:(sort==='new'&&!q),year:new Date().getFullYear(),skip:0,loading:false,done:false,fit:false};
+  const g=document.getElementById('results');
+  g.style.maxHeight=''; g.scrollTop=0;
+  g.innerHTML='<div class="hint">'+(SS.q?'Searching…':(SS.newMode?'Loading newest…':'Loading popular…'))+'</div>';
+  document.getElementById('resultsLabel').textContent='';
+  await loadMore(true);
+}
+async function loadMore(first){
+  if(SS.loading||SS.done)return;
+  SS.loading=true;
+  const g=document.getElementById('results');
+  try{
+    let qs=`/api/search?type=${SS.type}&q=${encodeURIComponent(SS.q)}&genre=${encodeURIComponent(SS.genre)}&skip=${SS.skip}&sort=${SS.sort}`;
+    if(SS.newMode)qs+=`&year=${SS.year}`;
+    const r=await fetch(qs).then(x=>x.json());
+    const res=r.results||[];
+    if(first){ g.innerHTML=''; document.getElementById('resultsLabel').textContent=
+      SS.newMode?('Newest '+(SS.type==='series'?'series':'movies')+' — by release date (newest first)')
+      :r.popular?('Popular '+(SS.genre?SS.genre+' ':'')+(SS.type==='series'?'series':'movies')):'Search results'; }
+    if(res.length)g.insertAdjacentHTML('beforeend',res.map(resCard).join(''));
+    // Advance the paging cursor. Cinemeta pages in blocks of 100.
+    if(SS.q){ SS.done=true; } // title search returns a single ranked page
+    else if(SS.newMode){
+      if(res.length<100){ SS.year--; SS.skip=0; if(SS.year<1920)SS.done=true; } // year exhausted -> step to older year
+      else SS.skip+=100;
+    } else {
+      if(!res.length)SS.done=true; else SS.skip+=100;
+    }
+    if(res.length&&!SS.fit){ SS.fit=true; requestAnimationFrame(fitFourRows); }
+    if(first&&!g.querySelector('.res')&&SS.done)g.innerHTML='<div class="hint">No results.</div>';
+    // keep filling until the box overflows, so there is something to scroll
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ if(!SS.done && g.scrollHeight<=g.clientHeight+5) loadMore(false); }));
+  }catch(e){ if(first)g.innerHTML='<div class="hint">Search failed.</div>'; }
+  finally{ SS.loading=false; }
+}
+function fitFourRows(){
+  const grid=document.getElementById('results');
+  const items=[...grid.children].filter(c=>c.classList.contains('res'));
+  if(!items.length||!items[0].offsetHeight){grid.style.maxHeight='';grid.style.overflowY='';return;}
+  const gap=parseFloat(getComputedStyle(grid).rowGap||'12')||12;
+  grid.style.maxHeight=(items[0].offsetHeight*4 + gap*3)+'px';
+  grid.style.overflowY='auto'; grid.style.overflowX='hidden'; grid.style.paddingRight='6px';
+}
+function setupInfinite(){
+  const g=document.getElementById('results');
+  g.addEventListener('scroll',()=>{ if(g.scrollTop+g.clientHeight>=g.scrollHeight-240) loadMore(false); });
+}
+window.addEventListener('resize',()=>{clearTimeout(window._fr);window._fr=setTimeout(fitFourRows,150);});
+async function pick(m){
+  lastPick=m; seriesPoster=m.poster||''; seriesId=m.id; seriesName=m.name||'';
+  document.getElementById('picked').style.display='block';
+  setTimeout(()=>document.getElementById('picked').scrollIntoView({behavior:'smooth',block:'start'}),50);
+  document.getElementById('sources').innerHTML='';
+  document.getElementById('seasonBar').innerHTML='';
+  document.getElementById('episodes').innerHTML='';
+  if(TYPE==='movie'){
+    document.getElementById('pickedName').textContent='Sources for: '+m.name;
+    loadSources('movie', m.id, m.poster, m.name);
+    return;
+  }
+  document.getElementById('pickedName').textContent=m.name+' — choose a season & episode';
+  document.getElementById('episodes').innerHTML='<div class="hint">Loading episodes…</div>';
+  try{
+    const meta=await fetch('/api/meta?type=series&id='+encodeURIComponent(m.id)).then(x=>x.json());
+    seriesVideos=(meta.videos||[]).filter(v=>v.season>0);
+    if(!seriesVideos.length){document.getElementById('episodes').innerHTML='<div class="hint">No episode list available.</div>';return;}
+    const seasons=[...new Set(seriesVideos.map(v=>v.season))].sort((a,b)=>a-b);
+    document.getElementById('seasonBar').innerHTML='<span class="hint">Season:</span> <select id="seasonSel" onchange="renderEpisodes(+this.value)">'+seasons.map(s=>`<option value="${s}">Season ${s}</option>`).join('')+'</select>';
+    renderEpisodes(seasons[0]);
+  }catch(e){document.getElementById('episodes').innerHTML='<div class="hint">Failed to load episodes.</div>';}
+}
+function renderEpisodes(season){
+  document.getElementById('sources').innerHTML='';
+  const eps=seriesVideos.filter(v=>v.season===season).sort((a,b)=>a.episode-b.episode);
+  document.getElementById('episodes').innerHTML=eps.map(v=>{
+    const label=(seriesName+' S'+season+'E'+v.episode).replace(/'/g,'');
+    return `<div class="src"><div class="st">E${v.episode} — ${esc(v.name)}</div><button class="sm" onclick="loadSources('series','${seriesId}:${season}:${v.episode}','${seriesPoster.replace(/'/g,'')}','${esc(label)}')">Sources</button></div>`;
+  }).join('');
+}
+async function loadSources(type,id,poster,label){
+  const base=label||id;
+  document.getElementById('pickedName').textContent='Sources for: '+base;
+  document.getElementById('sources').innerHTML='<div class="hint">Finding sources…</div>';
+  fetch('/api/subs?type='+type+'&id='+encodeURIComponent(id)).then(r=>r.json()).then(s=>{
+    if(s.count)document.getElementById('pickedName').textContent='Sources for: '+base+'   ·   📝 '+s.count+' subtitles available at playback ('+s.langs+' languages, via OpenSubtitles)';
+  }).catch(()=>{});
+  document.getElementById('sources').scrollIntoView({block:'nearest'});
+  try{
+    const r=await fetch('/api/sources?type='+type+'&id='+encodeURIComponent(id)).then(x=>x.json());
+    if(!r.sources.length){document.getElementById('sources').innerHTML='<div class="hint">No sources found for this title/episode.</div>';return;}
+    document.getElementById('sources').innerHTML=r.sources.map(s=>`<div class="src"><div class="st">${esc(s.title)}</div><button class="sm" onclick='startDl(${JSON.stringify({type,id,infoHash:s.infoHash,fileIdx:s.fileIdx,name:s.title,trackers:s.trackers,poster}).replace(/'/g,"&#39;")})'>Download</button></div>`).join('');
+  }catch(e){document.getElementById('sources').innerHTML='<div class="hint">Failed to load sources.</div>';}
+}
+function closeSources(){document.getElementById('picked').style.display='none';}
+function reopenSources(o){
+  if(!o||!o.type||!o.id){toast('No source list for this download');return;}
+  document.getElementById('picked').style.display='block';
+  document.getElementById('seasonBar').innerHTML='';
+  document.getElementById('episodes').innerHTML='';
+  document.getElementById('sources').innerHTML='';
+  loadSources(o.type,o.id,o.poster||'',o.name||o.id);
+  setTimeout(()=>document.getElementById('picked').scrollIntoView({behavior:'smooth',block:'start'}),50);
+}
+async function startDl(o){
+  const r=await fetch('/api/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(o)}).then(x=>x.json());
+  if(r.ok){
+    toast(r.dup?'Already in your downloads':'Download started ✓');
+    const card=document.getElementById('list').closest('.card');
+    if(card)setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),120);
+  } else toast('Error: '+(r.error||'failed'));
+  refresh();
+}
+async function addMagnet(){
+  const magnet=document.getElementById('magnet').value.trim(); if(!magnet){toast('Paste a magnet or infohash');return;}
+  const body={magnet,name:document.getElementById('mname').value.trim(),id:document.getElementById('mid').value.trim()};
+  const r=await fetch('/api/add',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json());
+  if(r.ok){toast(r.dup?'Already downloading':'Download started ✓');document.getElementById('magnet').value='';document.getElementById('mname').value='';document.getElementById('mid').value='';}
+  else toast('Error: '+(r.error||'failed'));
+  refresh();
+}
+
+async function refresh(){
+  try{
+    const [d,s]=await Promise.all([fetch('/api/downloads').then(r=>r.json()),fetch('/api/storage').then(r=>r.json())]);
+    renderStorage(s); renderList(d.downloads||[]);
+  }catch(e){}
+}
+function renderStorage(s){
+  const total=s.total||0, app=s.usedByDownloads||0, free=s.free||0, other=Math.max(0,(s.used||0)-app);
+  document.getElementById('segApp').style.width=total?(app/total*100)+'%':'0';
+  document.getElementById('segOther').style.width=total?(other/total*100)+'%':'0';
+  document.getElementById('sUsedApp').textContent=fmt(app);
+  document.getElementById('sUsedOther').textContent=fmt(other);
+  document.getElementById('sFree').textContent=fmt(free);
+  document.getElementById('sTotal').textContent=fmt(total);
+  document.getElementById('sDir').textContent=s.dir||'';
+}
+function renderList(items){
+  const sort=(document.getElementById('sortSel')||{}).value||'new';
+  items=items.slice();
+  if(sort==='az')items.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  else if(sort==='za')items.sort((a,b)=>(b.name||'').localeCompare(a.name||''));
+  else if(sort==='big')items.sort((a,b)=>(b.sizeBytes||0)-(a.sizeBytes||0));
+  else if(sort==='small')items.sort((a,b)=>(a.sizeBytes||0)-(b.sizeBytes||0));
+  else items.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  document.getElementById('empty').style.display=items.length?'none':'block';
+  document.getElementById('list').innerHTML=items.map(r=>{
+    const p=pct(r); const cls=r.status==='completed'?'done':r.status==='error'?'err':'';
+    const poster=r.poster||'https://icongr.am/material/movie.svg?size=120&color=7c5cff';
+    const srcData=(r.type&&r.streamId)?JSON.stringify({type:r.type,id:r.streamId,poster:r.poster||'',name:r.name}).replace(/'/g,"&#39;"):'';
+    let line=r.status==='downloading'?(fmt(r.bytesDownloaded)+' / '+fmt(r.sizeBytes)+'  •  '+fmt(r.speed||0)+'/s')
+      :r.status==='completed'?(fmt(r.sizeBytes)+'  •  plays offline (all tracks)')
+      :r.status==='error'?('⚠ '+(r.error||'failed')):'queued…';
+    return `<div class="item ${cls==='done'?'':''}"><img src="${poster}" onerror="this.style.visibility='hidden'"${srcData?` onclick='reopenSources(${srcData})' style="cursor:pointer" title="Re-open all sources for this title"`:''}>
+      <div class="info">
+        <div class="title">${srcData?`<span onclick='reopenSources(${srcData})' style="cursor:pointer" title="Re-open all sources for this title">${esc(r.name)}</span>`:esc(r.name)} <span class="badge ${r.status}">${r.status==='downloading'?p+'%':r.status}</span></div>
+        <div class="sub">${esc(r.fileName||r.infoHash||'')}</div>
+        <div class="pbar ${cls}"><div style="width:${r.status==='completed'?100:p}%"></div></div>
+        <div class="meta"><span>${esc(line)}</span><span>${r.subtitles&&r.subtitles.length?('💬 '+r.subtitles.length+' sub'):''}</span></div>
+      </div>
+      <div class="actions">
+        ${r.status==='completed'?`<button class="ok sm" onclick="autoPlay('${r.dlId}')">▶ Play</button><button class="ghost sm" onclick="stremioLink('${r.dlId}')">Stremio link</button>`:''}
+        ${r.status==='error'?`<button class="sm" onclick="retry('${r.dlId}')">Retry</button>`:''}
+        <button class="danger sm" onclick="del('${r.dlId}','${esc(r.name).replace(/'/g,'')}')">Delete</button>
+      </div></div>`;
+  }).join('');
+}
+async function changeDir(){
+  const cur=document.getElementById('sDir').textContent.trim();
+  toast('Opening folder…');
+  let dir='';
+  try{ dir=(await fetch('/api/pickfolder').then(x=>x.json())).dir||''; }
+  catch(e){ toast("Folder can't be opened"); return; }
+  if(!dir||dir===cur)return; // cancelled or unchanged
+  if(!confirm('Move all downloads to:\n'+dir+' ?'))return;
+  toast('Moving files to new folder…');
+  try{
+    const r=await fetch('/api/setdir',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({dir})}).then(x=>x.json());
+    if(r.ok)toast('Folder changed — moved '+r.moved+' file(s)');
+    else toast('Error: '+(r.error||'failed'));
+  }catch(e){toast('Could not change folder');}
+  refresh();
+}
+async function del(id,name){ if(!confirm('Delete "'+name+'"? Removes the file from disk.'))return; const r=await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({dlId:id})}).then(x=>x.json()).catch(()=>({ok:false,error:'Request failed'})); toast(r.ok?'Deleted':(r.error||'Could not delete')); refresh(); }
+async function retry(id){ await fetch('/api/retry',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({dlId:id})}); toast('Retrying'); refresh(); }
+
+let playLink='';
+async function autoPlay(id){
+  toast('Opening in your video player…');
+  try{ const r=await fetch('/api/play',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({dlId:id})}).then(x=>x.json());
+    if(!r.ok) toast('Could not open: '+(r.error||'')); }
+  catch(e){ toast('Could not open the player'); }
+}
+function stremioLink(id){ playLink='http://127.0.0.1:'+PORT+'/play/'+id; document.getElementById('playUrl').textContent=playLink; document.getElementById('playModal').classList.add('show'); copyPlay(); }
+function copyPlay(){ navigator.clipboard&&navigator.clipboard.writeText(playLink).then(()=>toast('Link copied'),()=>{}); }
+function closePlay(){ document.getElementById('playModal').classList.remove('show'); }
+
+fillGenres(); setupInfinite(); refresh(); setInterval(refresh,1500); doSearch();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Local tooling
+.claude/
+
+# Runtime data & state
+data/
+downloads/
+
+# Test/diagnostic scratch
+_probe/
+
+# Logs
+*.log
+*.err
+
+# Node
+node_modules/
