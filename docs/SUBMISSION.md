@@ -34,11 +34,10 @@ self-hosted, Windows, downloader, offline, catalog, movies, series
 http://127.0.0.1:11473/manifest.json
 
 ## Source / repository
-https://gitlab.com/hagay_bar/streamio-offline-downloader
-<!-- add the GitHub mirror URL here once created -->
+https://github.com/hagaluly/streamio-offline-downloader
 
 ## Logo
-https://gitlab.com/hagay_bar/streamio-offline-downloader/-/raw/main/docs/logo.svg
+https://raw.githubusercontent.com/hagaluly/streamio-offline-downloader/main/docs/logo.svg
 
 ## Maintainer
 Hagay Bar · hagay_bar@outlook.com
