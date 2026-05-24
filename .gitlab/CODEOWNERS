@@ -1,0 +1,10 @@
+# Code owners for streamio-offline-downloader.
+# Owners are requested for review on merge requests touching these paths.
+# Note: enforced *blocking* approval by code owners requires GitLab Premium;
+# on the free tier this still surfaces the owner as a suggested reviewer.
+
+* @hagay_bar
+
+# Core addon logic
+/addon.js        @hagay_bar
+/dashboard.html  @hagay_bar

@@ -6,6 +6,20 @@ It has **zero external dependencies** and runs on the Node runtime that already 
 
 > **Platform:** Windows. The launcher scripts, folder picker, and disk-space checks use Windows-specific tooling (PowerShell, `DriveInfo`, VBScript). The core `addon.js` is portable Node, but paths and helpers assume a Windows Stremio install.
 
+**Maintainer:** Hagay Bar · <hagay_bar@outlook.com> · [LinkedIn](https://www.linkedin.com/in/hagay-bar-3741ba6b/)
+
+---
+
+## Screenshots
+
+**Browse & search** — find any movie or series and queue a download:
+
+![Dashboard: browse and search](docs/screenshots/dashboard.png)
+
+**Pick a source & track downloads** — choose quality/source, see available subtitle tracks, and manage your offline library:
+
+![Dashboard: sources and downloads](docs/screenshots/sources-and-downloads.png)
+
 ---
 
 ## How it works
@@ -130,3 +144,11 @@ These, along with the `downloads/` output folder and local tooling, are excluded
 - Downloads **resume on startup** if they were interrupted while in progress.
 - A **3% disk headroom** check runs before each download; it won't block if disk space can't be read.
 - This tool only orchestrates Stremio's own torrent engine and public addons. You are responsible for ensuring your use complies with the law in your jurisdiction.
+
+---
+
+## Author
+
+**Hagay Bar**
+- Email: <hagay_bar@outlook.com>
+- LinkedIn: <https://www.linkedin.com/in/hagay-bar-3741ba6b/>
