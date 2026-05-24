@@ -12,6 +12,27 @@ It has **zero external dependencies** and runs on the Node runtime that already 
 
 ---
 
+## Quick start (self-hosted)
+
+> Windows + the Stremio desktop app, running. No `npm install`, no account, no hosting.
+
+```bat
+git clone https://github.com/hagaluly/streamio-offline-downloader.git
+cd streamio-offline-downloader
+:: edit the stremio-runtime.exe path + addon folder in Start-Offline-Addon.bat if yours differ
+Start-Offline-Addon.bat
+```
+
+Then, in Stremio, paste this into **Add-ons → Add-on Repository URL** and click Install:
+
+```
+http://127.0.0.1:11473/manifest.json
+```
+
+That's it — open any movie/episode and pick **"Offline Downloader → Save offline + play"**, or use the dashboard at <http://127.0.0.1:11473/>. Full details in [Setup](#setup) below.
+
+---
+
 ## Screenshots
 
 **Browse & search** — find any movie or series and queue a download:
