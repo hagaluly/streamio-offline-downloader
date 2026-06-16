@@ -33,6 +33,68 @@ That's it — open any movie/episode and pick **"Offline Downloader → Save off
 
 ---
 
+## Linux / WSL2 (Ubuntu 22.04)
+
+> Verified on Ubuntu 22.04 under WSL2 with Node.js 20. You run **two** processes inside
+> WSL — Stremio's streaming server and this addon — and use both UIs from your Windows
+> browser. No desktop GUI is required.
+
+### 1. Install Stremio (provides the streaming server on port 11470)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y /path/to/stremio_4.4.168-1_amd64.deb
+```
+
+This installs `/opt/stremio/server.js`. It needs `node` on `PATH` (the package depends on
+`nodejs`); if `/usr/bin/node` is missing, run `sudo ln -s "$(command -v nodejs)" /usr/bin/node`.
+
+### 2. Start the streaming server
+
+```bash
+./start-stremio-server.sh
+```
+
+Leave it running. It listens on `127.0.0.1:11470` — the engine this addon drives.
+
+### 3. Start the addon (in a second terminal)
+
+```bash
+./start-offline-addon.sh
+```
+
+This serves the dashboard on `http://127.0.0.1:11473/`. It exports
+`OFFLINE_STREAM_HOST=127.0.0.1` by default so that the HTTPS Stremio web UI does not block
+the addon's HTTP stream URLs as mixed content.
+
+### 4. Use both UIs from your Windows browser
+
+WSL2 forwards `localhost` to the WSL VM, so from a browser **on Windows**:
+
+- **Stremio:** open <https://web.stremio.com>. It auto-connects to your local streaming
+  server at `http://127.0.0.1:11470`. (If it does not, open Settings → it should show the
+  server as connected.)
+- **Addon dashboard:** open <http://localhost:11473/>.
+- **Install the addon into Stremio:** in the web UI, go to **Add-ons → Add-on Repository
+  URL**, paste `http://127.0.0.1:11473/manifest.json`, and click Install.
+
+If `localhost` from Windows does not reach WSL, find the WSL IP with `ip addr show eth0`
+and use that IP instead, or ensure `localhostForwarding=true` in your `%UserProfile%\.wslconfig`.
+Windows Defender Firewall may prompt the first time — allow it.
+
+### Notes for Linux
+
+- Disk-space checks use `fs.statfs` (no PowerShell).
+- The dashboard's external "Play" button uses an installed player (`vlc`/`mpv`) if present,
+  otherwise `xdg-open`. In WSL this opens on the Linux side; normal playback is through the
+  Stremio web UI.
+- The native "Browse for folder" button uses `zenity` if installed
+  (`sudo apt-get install -y zenity`); otherwise type the path into the folder box and Save.
+- Launcher scripts: `start-stremio-server.sh`, `start-offline-addon.sh` (the `.bat`/`.ps1`/
+  `.vbs` files are Windows-only).
+
+---
+
 ## Screenshots
 
 **Browse & search** — find any movie or series and queue a download:
