@@ -44,6 +44,9 @@ That's it — open any movie/episode and pick **"Offline Downloader → Save off
 ```bash
 sudo apt-get update
 sudo apt-get install -y /path/to/stremio_4.4.168-1_amd64.deb
+# zenity powers the dashboard's "Change…" downloads-folder picker (a GTK dialog
+# shown on the Windows desktop via WSLg). Recommended.
+sudo apt-get install -y zenity
 ```
 
 This installs `/opt/stremio/server.js`. It needs `node` on `PATH` (the package depends on
@@ -88,8 +91,11 @@ Windows Defender Firewall may prompt the first time — allow it.
 - The dashboard's external "Play" button uses an installed player (`vlc`/`mpv`) if present,
   otherwise `xdg-open`. In WSL this opens on the Linux side; normal playback is through the
   Stremio web UI.
-- The native "Browse for folder" button uses `zenity` if installed
-  (`sudo apt-get install -y zenity`); otherwise type the path into the folder box and Save.
+- The dashboard's "Change…" downloads-folder button uses `zenity` (installed in step 1).
+  Without it the button does nothing — there is no manual text-entry fallback. To change the
+  folder without zenity, set `OFFLINE_DIR=/your/path` before `./start-offline-addon.sh`.
+  The chooser browses the Linux filesystem; Windows drives are under `/mnt/c`, `/mnt/d` (a
+  Linux path downloads faster).
 - Launcher scripts: `start-stremio-server.sh`, `start-offline-addon.sh` (the `.bat`/`.ps1`/
   `.vbs` files are Windows-only).
 
