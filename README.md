@@ -76,6 +76,8 @@ background (survives closing the terminal, but not a full WSL shutdown). Re-runn
 it skips whatever is already up. Downloads fail with *"streaming server (port 11470) is not
 reachable"* whenever the server isn't running, so keep both alive.
 
+**Stop both:** `./stop-all.sh`. Check what's running: `ss -ltn | grep -E ':1147(0|3)'`.
+
 ### 4. Use both UIs from your Windows browser
 
 WSL2 forwards `localhost` to the WSL VM, so from a browser **on Windows**:
