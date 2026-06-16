@@ -135,7 +135,7 @@ function httpsGetJSON(u, timeoutMs) {
 }
 
 // ---------------------------------------------------------------------------
-// Disk space (fs.statfs not available on node 18.12; use DriveInfo via PowerShell)
+// Disk space: fs.statfs (Linux, Node >= 18.15) or DriveInfo via PowerShell (Windows)
 // ---------------------------------------------------------------------------
 function driveRoot(p) { return path.parse(path.resolve(p)).root; }
 function diskSpace(forPath) {
