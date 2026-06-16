@@ -70,6 +70,12 @@ This serves the dashboard on `http://127.0.0.1:11473/`. It exports
 `OFFLINE_STREAM_HOST=127.0.0.1` by default so that the HTTPS Stremio web UI does not block
 the addon's HTTP stream URLs as mixed content.
 
+**Shortcut — start both at once:** instead of steps 2 and 3, run `./start-all.sh`. It
+launches the streaming server, waits for port 11470, then starts the addon — both in the
+background (survives closing the terminal, but not a full WSL shutdown). Re-running is safe;
+it skips whatever is already up. Downloads fail with *"streaming server (port 11470) is not
+reachable"* whenever the server isn't running, so keep both alive.
+
 ### 4. Use both UIs from your Windows browser
 
 WSL2 forwards `localhost` to the WSL VM, so from a browser **on Windows**:
