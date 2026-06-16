@@ -7,7 +7,10 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${TMPDIR:-/tmp}"
+# Private per-user log dir (mode 700) — avoids world-writable /tmp where another
+# user could pre-plant a symlink at the log path and have us clobber its target.
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/stremio"
+mkdir -p -m 700 "$LOG_DIR"
 SERVER_LOG="$LOG_DIR/stremio-server.log"
 ADDON_LOG="$LOG_DIR/offline-addon.log"
 
