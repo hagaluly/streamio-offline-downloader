@@ -62,10 +62,10 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 // Preferred external player for the dashboard "Play" button (VLC if present).
 function findPlayer() {
   if (process.env.OFFLINE_PLAYER && fs.existsSync(process.env.OFFLINE_PLAYER)) return process.env.OFFLINE_PLAYER;
-  const cands = [
-    'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
-    'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe'
-  ];
+  const cands = process.platform === 'win32'
+    ? ['C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
+       'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe']
+    : ['/usr/bin/vlc', '/usr/local/bin/vlc', '/snap/bin/vlc', '/usr/bin/mpv'];
   for (const c of cands) { try { if (fs.existsSync(c)) return c; } catch (_) {} }
   return null;
 }
@@ -140,7 +140,19 @@ function httpsGetJSON(u, timeoutMs) {
 function driveRoot(p) { return path.parse(path.resolve(p)).root; }
 function diskSpace(forPath) {
   return new Promise((resolve) => {
-    const root = driveRoot(forPath || DOWNLOADS_DIR);
+    const target = forPath || DOWNLOADS_DIR;
+    const root = driveRoot(target);
+    if (process.platform !== 'win32') {
+      // POSIX (Linux/WSL): statfs reports block counts; bavail = blocks free to
+      // unprivileged users, blocks = total. fs.statfs is available on Node >= 18.15.
+      if (typeof fs.statfs !== 'function')
+        return resolve({ free: 0, total: 0, root, error: 'statfs unavailable (Node < 18.15)' });
+      fs.statfs(target, (err, st) => {
+        if (err) return resolve({ free: 0, total: 0, root, error: err.message });
+        resolve({ free: st.bavail * st.bsize, total: st.blocks * st.bsize, root });
+      });
+      return;
+    }
     const ps = `$d=[System.IO.DriveInfo]::new('${root.replace(/'/g, "''")}'); ` +
       `Write-Output ($d.AvailableFreeSpace.ToString()+'|'+$d.TotalSize.ToString())`;
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true },
@@ -166,6 +178,15 @@ async function checkSpace(sizeBytes) {
 // Show the native Windows "Browse for Folder" dialog and return the chosen path.
 function pickFolderNative(initial) {
   return new Promise((resolve) => {
+    if (process.platform !== 'win32') {
+      // Linux/WSL: use zenity's directory chooser if available. If zenity is not
+      // installed (or errors), resolve empty so the dashboard falls back to the
+      // manual path-entry box (POST /api/setdir).
+      const args = ['--file-selection', '--directory', '--title=Choose the Stremio downloads folder'];
+      if (initial) args.push('--filename=' + initial.replace(/\/?$/, '/'));
+      execFile('zenity', args, { timeout: 180000 }, (err, stdout) => resolve(String(stdout || '').trim()));
+      return;
+    }
     const ps1 = path.join(ROOT, 'pickfolder.ps1');
     execFile('powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', ps1, initial || ''],
       { windowsHide: true, timeout: 180000 }, (err, stdout) => { resolve(String(stdout || '').trim()); });
@@ -891,9 +912,11 @@ const server = http.createServer(async (req, res) => {
       if (!rec || rec.status !== 'completed' || !rec.filePath || !fs.existsSync(rec.filePath)) return sendJSON(res, { ok: false, error: 'file not ready' });
       if (PLAYER) {
         execFile(PLAYER, [rec.filePath], {}, (e) => { if (e) log('player launch error', e.message); });
-      } else {
+      } else if (process.platform === 'win32') {
         const safe = rec.filePath.replace(/"/g, '');
         exec(`start "" "${safe}"`, { windowsHide: true }, (e) => { if (e) log('play launch error', e.message); });
+      } else {
+        execFile('xdg-open', [rec.filePath], {}, (e) => { if (e) log('play launch error', e.message); });
       }
       return sendJSON(res, { ok: true, player: PLAYER ? 'vlc' : 'default' });
     }
