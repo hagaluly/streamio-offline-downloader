@@ -520,7 +520,8 @@ async function seasonDownload(body) {
       if (best) chosen = { infoHash: best.infoHash, fileIdx: best.fileIdx, title: best.title || best.label, trackers: best.trackers || [] };
     }
     if (!chosen) { skipped.push({ ep, reason: 'no matching source' }); continue; }
-    const q = new URLSearchParams({ type: 'series', id, ih: String(chosen.infoHash).toLowerCase(), name: `${seriesName || seriesId} S${season}E${ep}` });
+    // Pass the clean show name; humanName() appends the SxxExx (avoids "Show S3E1 S3E1").
+    const q = new URLSearchParams({ type: 'series', id, ih: String(chosen.infoHash).toLowerCase(), name: String(seriesName || seriesId) });
     if (chosen.fileIdx != null && chosen.fileIdx !== '') q.set('fi', String(chosen.fileIdx));
     if (chosen.trackers && chosen.trackers.length) q.set('tr', chosen.trackers.join(','));
     const out = await triggerDownload(q);
