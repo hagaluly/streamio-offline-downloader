@@ -19,6 +19,8 @@
   input { width:100%; }
   button { cursor:pointer; border:none; border-radius:8px; padding:9px 15px; font-weight:600; color:#fff; background:var(--accent); }
   button:hover { background:var(--accent2); }
+  .btn-sources { background:#f1c40f; color:#1b1530; }
+  .btn-sources:hover { background:#f7d544; }
   button.sm { padding:6px 12px; font-size:13px; }
   button.danger { background:transparent; border:1px solid var(--err); color:var(--err); }
   button.danger:hover { background:var(--err); color:#fff; }
@@ -258,7 +260,7 @@ function renderEpisodes(season){
   const eps=seriesVideos.filter(v=>v.season===season).sort((a,b)=>a.episode-b.episode);
   document.getElementById('episodes').innerHTML=eps.map(v=>{
     const label=(seriesName+' S'+season+'E'+v.episode).replace(/'/g,'');
-    return `<div class="src"><div class="st">E${v.episode} — ${esc(v.name)}</div><button class="sm" onclick="loadSources('series','${seriesId}:${season}:${v.episode}','${seriesPoster.replace(/'/g,'')}','${esc(label)}')">Sources</button></div>`;
+    return `<div class="src"><div class="st">E${v.episode} — ${esc(v.name)}</div><button class="sm btn-sources" onclick="loadSources('series','${seriesId}:${season}:${v.episode}','${seriesPoster.replace(/'/g,'')}','${esc(label)}')">Sources</button></div>`;
   }).join('');
 }
 async function loadSources(type,id,poster,label){
