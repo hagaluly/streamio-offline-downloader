@@ -275,7 +275,7 @@ async function startDownload(rec) {
       return;
     }
 
-    const destDir = path.join(DOWNLOADS_DIR, sanitize(rec.folder || rec.name));
+    const destDir = path.join(DOWNLOADS_DIR, destSubdir(rec));
     fs.mkdirSync(destDir, { recursive: true });
     const destPath = path.join(destDir, sanitize(vfile.name));
     rec.filePath = destPath;
@@ -384,6 +384,17 @@ async function deleteDownload(dlId) {
   delete DB.downloads[dlId];
   saveDBNow();
   return { ok: true, fileRemoved: true };
+}
+
+// Delete every download (files + records). Returns counts; lists any that
+// could not be removed (e.g. file locked/open elsewhere).
+async function deleteAllDownloads() {
+  let removed = 0; const failed = [];
+  for (const dlId of Object.keys(DB.downloads)) {
+    const r = await deleteDownload(dlId);
+    if (r.ok) removed++; else failed.push({ dlId, error: r.error });
+  }
+  return { ok: failed.length === 0, removed, failed };
 }
 
 // resume any interrupted downloads on startup
@@ -670,18 +681,26 @@ async function triggerDownload(q) {
   const fi = q.get('fi'); const tr = q.get('tr');
   const dlId = rid();
   const namePart = q.get('name') || id;
+  // For series, capture season/episode and a best-effort clean show name (the
+  // part of the source title before the SxxExx token); cinemeta refines it below.
+  const sm = id.match(/^tt\d+:(\d+):(\d+)$/);
+  const season = sm ? parseInt(sm[1], 10) : null;
+  const episode = sm ? parseInt(sm[2], 10) : null;
+  const seriesGuess = sm ? (namePart.split(/\s*[Ss]\d{1,2}[Ee]\d{1,3}\b/)[0].trim() || null) : null;
   const rec = {
     dlId, streamId: id, type: type || (id.includes(':') ? 'series' : 'movie'),
     name: humanName(id, namePart), folder: humanName(id, namePart),
+    season, episode, seriesName: seriesGuess,
     infoHash: ih, fileIdx: fi !== null && fi !== '' ? parseInt(fi, 10) : undefined,
     trackers: tr ? tr.split(',').filter(Boolean) : null,
     sizeBytes: 0, bytesDownloaded: 0, status: 'queued', speed: 0,
     createdAt: Date.now()
   };
-  // try to enrich poster/name from cinemeta
-  enrichMeta(rec).catch(() => {});
   DB.downloads[dlId] = rec;
   saveDB();
+  // Resolve a clean series/movie name from cinemeta BEFORE choosing the folder,
+  // so the destination is deterministic (not a race with the download start).
+  await enrichMeta(rec);
   startDownload(rec);
   return { ok: true, dlId };
 }
@@ -690,6 +709,15 @@ function humanName(id, fallback) {
   const m = id.match(/^(tt\d+)(?::(\d+):(\d+))?$/);
   if (m && m[2]) return `${fallback || m[1]} S${m[2]}E${m[3]}`;
   return fallback || id;
+}
+
+// Deterministic download subfolder: <Series>/Season NN for episodes, <Name> otherwise.
+function destSubdir(rec) {
+  if (rec.type === 'series' && rec.season != null) {
+    const show = sanitize(rec.seriesName || rec.folder || rec.name) || 'Series';
+    return path.join(show, 'Season ' + String(rec.season).padStart(2, '0'));
+  }
+  return sanitize(rec.folder || rec.name);
 }
 
 async function enrichMeta(rec) {
@@ -703,6 +731,7 @@ async function enrichMeta(rec) {
       const sm = rec.streamId.match(/^tt\d+:(\d+):(\d+)$/);
       rec.name = sm ? `${j.meta.name} S${sm[1]}E${sm[2]}` : (j.meta.name || rec.name);
       rec.folder = j.meta.name || rec.folder;
+      if (j.meta.name) rec.seriesName = j.meta.name;
       saveDB();
     }
   } catch (_) {}
@@ -896,6 +925,9 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const out = await deleteDownload(body.dlId);
       return sendJSON(res, out);
+    }
+    if (p === '/api/delete-all' && req.method === 'POST') {
+      return sendJSON(res, await deleteAllDownloads());
     }
     if (p === '/api/add' && req.method === 'POST') {
       const body = await readBody(req);
