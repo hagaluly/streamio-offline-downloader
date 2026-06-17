@@ -444,7 +444,8 @@ async function getTorrentOptions(type, id) {
 // (the part before that tail) by quality tier + source + codec + scene group.
 // ---------------------------------------------------------------------------
 const SRC_RE = /\b(web-?dl|web-?rip|webrip|bluray|blu-ray|bdrip|brrip|hdtv|dvdrip|remux)\b/;
-const CODEC_RE = /\b(x265|x264|h265|h264|hevc|avc|av1)\b/;
+// Allow a space or dot between the letter and digits, e.g. "H 264", "h.265".
+const CODEC_RE = /\b(x[\s.]?26[45]|h[\s.]?26[45]|hevc|avc|av1)\b/;
 const GROUP_STOP = new Set(['dl', 'ray', 'rip', 'web', 'hdtv', 'remux', 'bluray', 'webrip', 'brrip', 'bdrip', 'dvdrip', 'x264', 'x265', 'h264', 'h265', 'hevc', 'avc', 'av1', '264', '265']);
 function relName(title) { return String(title || '').split(/[\u{1F464}\u{1F4BE}⚙]/u)[0].trim(); }
 function releaseGroup(title) {
