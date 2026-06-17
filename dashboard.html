@@ -50,8 +50,9 @@
   .item .info { flex:1; min-width:0; }
   .item .title { font-weight:600; font-size:15px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .item .sub { font-size:12px; color:var(--muted); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pbar { height:8px; border-radius:5px; background:#120d22; overflow:hidden; }
+  .pbar { position:relative; height:16px; border-radius:5px; background:#120d22; overflow:hidden; }
   .pbar > div { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .5s; }
+  .pbarpct { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.7); pointer-events:none; }
   .pbar.done > div { background:var(--ok); }
   .pbar.err > div { background:var(--err); }
   .meta { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:6px; }
@@ -140,7 +141,7 @@
       </div>
     </div>
     <div class="list" id="list" style="margin-top:12px"></div>
-    <div class="empty" id="empty" style="display:none">Nothing yet. Search above and download a movie or episode.</div>
+    <div class="empty" id="empty" style="display:none">No active downloads. Completed files live in Stremio's “Offline Downloads” catalog.</div>
   </div>
 </div>
 
@@ -320,7 +321,7 @@ function renderStorage(s){
 }
 function renderList(items){
   const sort=(document.getElementById('sortSel')||{}).value||'new';
-  items=items.slice();
+  items=items.slice().filter(r=>r.status!=='completed'); // completed drop off the dashboard (offline copy lives in Stremio's catalog)
   if(sort==='az')items.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   else if(sort==='za')items.sort((a,b)=>(b.name||'').localeCompare(a.name||''));
   else if(sort==='big')items.sort((a,b)=>(b.sizeBytes||0)-(a.sizeBytes||0));
@@ -338,7 +339,7 @@ function renderList(items){
       <div class="info">
         <div class="title">${srcData?`<span onclick='reopenSources(${srcData})' style="cursor:pointer" title="Re-open all sources for this title">${esc(r.name)}</span>`:esc(r.name)} <span class="badge ${r.status}">${r.status==='downloading'?p+'%':r.status}</span></div>
         <div class="sub">${esc(r.fileName||r.infoHash||'')}</div>
-        <div class="pbar ${cls}"><div style="width:${r.status==='completed'?100:p}%"></div></div>
+        <div class="pbar ${cls}"><div style="width:${p}%"></div><span class="pbarpct">${p}%</span></div>
         <div class="meta"><span>${esc(line)}</span><span>${r.subtitles&&r.subtitles.length?('💬 '+r.subtitles.length+' sub'):''}</span></div>
       </div>
       <div class="actions">
