@@ -438,6 +438,89 @@ async function getTorrentOptions(type, id) {
 }
 
 // ---------------------------------------------------------------------------
+// Whole-season "same release" matching
+// Torrentio titles arrive single-line (newlines already collapsed) and carry a
+// metadata tail like "👤 50  💾 1.2 GB  ⚙ Provider". We compare the release name
+// (the part before that tail) by quality tier + source + codec + scene group.
+// ---------------------------------------------------------------------------
+const SRC_RE = /\b(web-?dl|web-?rip|webrip|bluray|blu-ray|bdrip|brrip|hdtv|dvdrip|remux)\b/;
+const CODEC_RE = /\b(x265|x264|h265|h264|hevc|avc|av1)\b/;
+const GROUP_STOP = new Set(['dl', 'ray', 'rip', 'web', 'hdtv', 'remux', 'bluray', 'webrip', 'brrip', 'bdrip', 'dvdrip', 'x264', 'x265', 'h264', 'h265', 'hevc', 'avc', 'av1', '264', '265']);
+function relName(title) { return String(title || '').split(/[\u{1F464}\u{1F4BE}⚙]/u)[0].trim(); }
+function releaseGroup(title) {
+  const name = relName(title).replace(/\.(mkv|mp4|avi|m4v|ts)$/i, '');
+  const parts = name.split('-');
+  if (parts.length < 2) return '';
+  const last = (parts[parts.length - 1].trim().split(/\s+/)[0] || '').toLowerCase();
+  return (/^[a-z0-9]{2,}$/.test(last) && !GROUP_STOP.has(last)) ? last : '';
+}
+function releaseSignature(title) {
+  const t = relName(title).toLowerCase();
+  const norm = (s) => (s || '').replace(/[^a-z0-9]+/g, '');
+  return {
+    quality: qualityRank(t),
+    source: norm((t.match(SRC_RE) || [])[0]),
+    codec: norm((t.match(CODEC_RE) || [])[0]),
+    group: releaseGroup(title)
+  };
+}
+// Returns a match score (higher = better) or -1 if the candidate is not a match.
+// Quality tier must match; then a same scene-group is a strong match, otherwise
+// a matching source + codec is accepted.
+function matchScore(sig, candTitle) {
+  const c = releaseSignature(candTitle);
+  if (c.quality !== sig.quality) return -1;
+  let s = 0;
+  const groupMatch = !!(sig.group && c.group && sig.group === c.group);
+  if (groupMatch) s += 5;
+  if (sig.source && c.source === sig.source) s += 2;
+  if (sig.codec && c.codec === sig.codec) s += 2;
+  return (groupMatch || s >= 2) ? s : -1;
+}
+
+// Queue a download for every episode of a season using the release that best
+// matches the user-picked source. The picked episode uses that exact source;
+// the rest are matched per-episode via torrentio. Episodes already downloaded
+// (or in progress), and those with no matching source, are skipped + reported.
+async function seasonDownload(body) {
+  const { seriesId, season, episodes, source, poster, seriesName } = body || {};
+  if (!seriesId || season == null || !Array.isArray(episodes) || !source || !source.infoHash)
+    return { ok: false, error: 'missing seriesId/season/episodes/source' };
+  const sig = releaseSignature(source.title || source.name || '');
+  const chosenEp = (String(source.id || '').match(/:(\d+):(\d+)$/) || [])[2];
+  const chosenEpNum = chosenEp != null ? parseInt(chosenEp, 10) : null;
+  const queued = [], skipped = [];
+  for (const ep of episodes) {
+    const id = `${seriesId}:${season}:${ep}`;
+    if (Object.values(DB.downloads).some(r => r.streamId === id && ['completed', 'downloading', 'queued'].includes(r.status))) {
+      skipped.push({ ep, reason: 'already downloaded' }); continue;
+    }
+    let chosen = null;
+    if (ep === chosenEpNum) {
+      chosen = { infoHash: source.infoHash, fileIdx: source.fileIdx, title: source.title || source.name, trackers: source.trackers || [] };
+    } else {
+      const opts = await getTorrentOptions('series', id);
+      let best = null, bestScore = 0;
+      for (const o of opts) {
+        const sc = matchScore(sig, o.title || o.label);
+        if (sc > bestScore) { bestScore = sc; best = o; }
+      }
+      if (best) chosen = { infoHash: best.infoHash, fileIdx: best.fileIdx, title: best.title || best.label, trackers: best.trackers || [] };
+    }
+    if (!chosen) { skipped.push({ ep, reason: 'no matching source' }); continue; }
+    const q = new URLSearchParams({ type: 'series', id, ih: String(chosen.infoHash).toLowerCase(), name: `${seriesName || seriesId} S${season}E${ep}` });
+    if (chosen.fileIdx != null && chosen.fileIdx !== '') q.set('fi', String(chosen.fileIdx));
+    if (chosen.trackers && chosen.trackers.length) q.set('tr', chosen.trackers.join(','));
+    const out = await triggerDownload(q);
+    if (out.ok) {
+      if (poster && out.dlId) { const r = DB.downloads[out.dlId]; if (r && !r.poster) { r.poster = poster; saveDB(); } }
+      queued.push({ ep, title: chosen.title });
+    } else skipped.push({ ep, reason: out.error || 'failed to queue' });
+  }
+  return { ok: true, queued, skipped, signature: sig };
+}
+
+// ---------------------------------------------------------------------------
 // Addon protocol
 // ---------------------------------------------------------------------------
 const MANIFEST = {
@@ -905,6 +988,10 @@ const server = http.createServer(async (req, res) => {
       const out = await triggerDownload(q);
       if (out.dlId && body.poster) { const r = DB.downloads[out.dlId]; if (r && !r.poster) { r.poster = body.poster; saveDB(); } }
       return sendJSON(res, out);
+    }
+    if (p === '/api/season-download' && req.method === 'POST') {
+      const body = await readBody(req);
+      return sendJSON(res, await seasonDownload(body));
     }
     if (p === '/api/play' && req.method === 'POST') {
       const body = await readBody(req);

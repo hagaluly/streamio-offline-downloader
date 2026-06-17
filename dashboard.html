@@ -21,6 +21,9 @@
   button:hover { background:var(--accent2); }
   .btn-sources { background:#f1c40f; color:#1b1530; }
   .btn-sources:hover { background:#f7d544; }
+  .srcbtns { display:flex; gap:6px; flex:none; }
+  .btn-season { background:var(--ok); color:#08210f; }
+  .btn-season:hover { background:#43d77f; }
   button.sm { padding:6px 12px; font-size:13px; }
   button.danger { background:transparent; border:1px solid var(--err); color:var(--err); }
   button.danger:hover { background:var(--err); color:#fff; }
@@ -274,7 +277,17 @@ async function loadSources(type,id,poster,label){
   try{
     const r=await fetch('/api/sources?type='+type+'&id='+encodeURIComponent(id)).then(x=>x.json());
     if(!r.sources.length){document.getElementById('sources').innerHTML='<div class="hint">No sources found for this title/episode.</div>';return;}
-    document.getElementById('sources').innerHTML=r.sources.map(s=>`<div class="src"><div class="st">${esc(s.title)}</div><button class="sm" onclick='startDl(${JSON.stringify({type,id,infoHash:s.infoHash,fileIdx:s.fileIdx,name:s.title,trackers:s.trackers,poster}).replace(/'/g,"&#39;")})'>Download</button></div>`).join('');
+    const isSeries=type==='series';
+    const sm=String(id).match(/:(\d+):(\d+)$/);
+    const seasonNo=sm?parseInt(sm[1],10):null;
+    const eps=(isSeries&&seasonNo!=null)?seriesVideos.filter(v=>v.season===seasonNo).map(v=>v.episode):[];
+    document.getElementById('sources').innerHTML=r.sources.map(s=>{
+      const o={type,id,infoHash:s.infoHash,fileIdx:s.fileIdx,name:s.title,title:s.title,trackers:s.trackers,poster};
+      const oj=JSON.stringify(o).replace(/'/g,"&#39;");
+      const dl=`<button class="sm" onclick='startDl(${oj})'>${isSeries?'⬇ Episode':'Download'}</button>`;
+      const seasonBtn=(isSeries&&eps.length)?`<button class="sm btn-season" title="Download every episode of Season ${seasonNo} matching this release" onclick='startSeason(${oj},${seasonNo},${JSON.stringify(eps).replace(/'/g,"&#39;")})'>⬇ Season</button>`:'';
+      return `<div class="src"><div class="st">${esc(s.title)}</div><div class="srcbtns">${dl}${seasonBtn}</div></div>`;
+    }).join('');
   }catch(e){document.getElementById('sources').innerHTML='<div class="hint">Failed to load sources.</div>';}
 }
 function closeSources(){document.getElementById('picked').style.display='none';}
@@ -294,6 +307,20 @@ async function startDl(o){
     const card=document.getElementById('list').closest('.card');
     if(card)setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),120);
   } else toast('Error: '+(r.error||'failed'));
+  refresh();
+}
+async function startSeason(o,season,episodes){
+  if(!confirm('Download all '+episodes.length+' episode(s) of Season '+season+' matching this release?\n\n"'+o.title+'"\n\nEpisodes with no matching source are skipped.'))return;
+  toast('Matching sources across Season '+season+'…');
+  const body={seriesId,season,episodes,source:{id:o.id,infoHash:o.infoHash,fileIdx:o.fileIdx,title:o.title,trackers:o.trackers},poster:o.poster,seriesName};
+  let r; try{ r=await fetch('/api/season-download',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(x=>x.json()); }
+  catch(e){ toast('Season download failed'); return; }
+  if(!r.ok){ toast('Error: '+(r.error||'failed')); return; }
+  const sk=r.skipped||[];
+  let msg='Queued '+r.queued.length+' episode'+(r.queued.length===1?'':'s');
+  if(sk.length) msg+=' · skipped '+sk.length+' (E'+sk.map(x=>x.ep).join(', E')+')';
+  toast(msg);
+  const card=document.getElementById('list').closest('.card'); if(card)setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),150);
   refresh();
 }
 async function addMagnet(){
