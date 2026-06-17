@@ -318,7 +318,10 @@ async function startSeason(o,season,episodes){
   if(!r.ok){ toast('Error: '+(r.error||'failed')); return; }
   const sk=r.skipped||[];
   let msg='Queued '+r.queued.length+' episode'+(r.queued.length===1?'':'s');
-  if(sk.length) msg+=' · skipped '+sk.length+' (E'+sk.map(x=>x.ep).join(', E')+')';
+  if(sk.length){
+    const by={}; sk.forEach(x=>{(by[x.reason]=by[x.reason]||[]).push(x.ep);});
+    msg+=' · skipped '+sk.length+': '+Object.entries(by).map(([reason,eps])=>eps.length+' '+reason+' (E'+eps.join(', E')+')').join('; ');
+  }
   toast(msg);
   const card=document.getElementById('list').closest('.card'); if(card)setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),150);
   refresh();
